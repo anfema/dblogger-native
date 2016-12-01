@@ -13,7 +13,7 @@ Just install `dblogger` with `npm install --save dblogger`
 Initialize a named logger:
 
 ~~~javascript
-const logger = new require('dblogger')({
+const logger = require('dblogger')({
 	type: "sqlite",
 	name: "./test.db",
 	stdout: true,
@@ -23,7 +23,7 @@ const logger = new require('dblogger')({
 To get access to an already initialized logger just skip the options object:
 
 ~~~javascript
-const logger = new require('dblogger')();
+const logger = require('dblogger')();
 ~~~
 
 Available options in the options object:
@@ -62,7 +62,7 @@ If you log objects or arrays a JSON representation is logged
 You may set the log level on initialization or later by creating a new instance:
 
 ~~~javascript
-const logger = new require('dblogger')(30);
+const logger = require('dblogger')(30);
 ~~~
 
 #### Define tags for log entry
@@ -76,7 +76,7 @@ logger.tag('mytag', 'anothertag').log('Message');
 All tags that are defined will be added to the returned logger instance. You could even do the following:
 
 ~~~javascript
-const logger = (new require('dblogger')()).tag('globaltag');
+const logger = require('dblogger')().tag('globaltag');
 
 logger.log('Message'); // this message will be tagged with `globaltag`
 ~~~
