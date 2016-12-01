@@ -1,0 +1,26 @@
+{
+  "name": "dblogger",
+  "version": "0.2.0",
+  "description": "Native code logging library, DB enabled",
+  "main": "index.js",
+  "author": {
+	  "name": "Johannes Schriewer",
+	  "email": "j.schriewer@anfe.ma"
+  },
+  "keywords": [
+	  "logging",
+	  "db",
+	  "database",
+	  "log",
+	  "api"
+  ],
+  "license": "BSD-3-Clause",
+  "gypfile": true,
+  "dependencies": {
+    "bindings": "~1.2.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anfema/dblogger-native.git"
+  }
+}
