@@ -3,7 +3,7 @@
 
 using std::cout;
 using std::cerr;
-static locale_t locale = newlocale(LC_ALL_MASK, NULL, NULL);
+static locale_t locale = newlocale(LC_ALL_MASK, "C", NULL);
 
 void log_stdout(int level, time_t date, string hostname, int pid, string filename, string function, int line, int column, vector<string>parts, set<string>tags) {
 	const struct tm *tstruct = localtime(&date);
