@@ -322,13 +322,19 @@ void Logger::Fatal(const FunctionCallbackInfo<Value>& args) {
  * Add tags, return new logger instance
  */
 
-void Logger::Tag(const FunctionCallbackInfo<Value>& args) {
-	Logger* logger = ObjectWrap::Unwrap<Logger>(args.Holder());
-
+void Logger::Tag(const FunctionCallbackInfo<Value>& context) {
+	Logger* logger = ObjectWrap::Unwrap<Logger>(context.Holder());
+	Isolate* isolate = context.GetIsolate();
 
 	// create a new logger
-	Logger* obj = new Logger();
+	const int argc = 0;
+    Local<Value> argv[argc] = { };
+    Local<Context> cx = isolate->GetCurrentContext();
+    Local<Function> cons = Local<Function>::New(isolate, constructor);
+    Local<Object> result =
+        cons->NewInstance(cx, argc, argv).ToLocalChecked();
 
+	Logger* obj = ObjectWrap::Unwrap<Logger>(result);;
 
 	// copy tags from parent
 	for(auto tag : logger->tags) {
@@ -340,16 +346,14 @@ void Logger::Tag(const FunctionCallbackInfo<Value>& args) {
 	obj->level = logger->level;
 
 	// add new tags from arguments
-	for(int i = 0; i < args.Length(); i++) {
-		Handle<Value> val = Handle<Object>::Cast(args[i]);
+	for(int i = 0; i < context.Length(); i++) {
+		Handle<Value> val = Handle<Object>::Cast(context[i]);
 		string tag = string(*String::Utf8Value(
 			val->ToString())
 		);
 		obj->tags.insert(tag);
 	}
 
-
 	// return new instance
-	obj->Wrap(args.This());
-	args.GetReturnValue().Set(args.This());
+    context.GetReturnValue().Set(result);
 }
