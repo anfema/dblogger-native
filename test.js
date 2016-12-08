@@ -1,6 +1,12 @@
 var { Logger } = require('bindings')('dblogger');
 
-let logger = new Logger({
+process.on('SIGHUP', () => {
+	const logger = new Logger({ stdout: true });
+	logger.rotate();
+	logger.tag('rotate').info('Logfile rotated');
+});
+
+const logger = new Logger({
 	type: "sqlite",
 	name: "./test.db",
 	stdout: true,
@@ -14,7 +20,7 @@ process.nextTick(() => {
 	let logger2 = new Logger({ stdout: true })
 	let logger3 = new Logger(30);
 
-	logger.info("Test", 2, { something: "something other" }, [0, 1, 2]);
+	logger.tag('fafafa').info("Test", 2, { something: "something other" }, [0, 1, 2]);
 
 	function bla() {
 		logger2.debug('From function');
@@ -24,8 +30,6 @@ process.nextTick(() => {
 
 });
 
-setTimeout(() => {
-	console.log('exiting...')
-}, 3000);
-
-//let obj2 = dblogger.Logger('tag')
+setInterval(() => {
+	logger.log('Ping');
+}, 1000);

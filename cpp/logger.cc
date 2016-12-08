@@ -220,6 +220,9 @@ void Logger::Init(Local<Object> exports, Local<Object> module) {
 	// Prototype tagging function
 	NODE_SET_PROTOTYPE_METHOD(tpl, "tag", Tag);
 
+	// Prototype log rotation function
+	NODE_SET_PROTOTYPE_METHOD(tpl, "rotate", Rotate);
+
 	// Return create function, set class name
 	constructor.Reset(isolate, tpl->GetFunction());
 	exports->Set(String::NewFromUtf8(isolate, "Logger"),
@@ -356,4 +359,25 @@ void Logger::Tag(const FunctionCallbackInfo<Value>& context) {
 
 	// return new instance
     context.GetReturnValue().Set(result);
+}
+
+
+/*
+ * Log rotation support
+ */
+
+void Logger::Rotate(const FunctionCallbackInfo<Value>& context) {
+	if (connection != NULL) {
+		auto new_connection = new DBConnection(
+			connection->db_type,
+			connection->db_host,
+			connection->db_port,
+			connection->db_user,
+			connection->db_password,
+			connection->db_name,
+			connection->prefix
+		);
+		delete connection;
+		connection = new_connection;
+	}
 }

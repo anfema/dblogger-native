@@ -81,6 +81,25 @@ const logger = require('dblogger')().tag('globaltag');
 logger.log('Message'); // this message will be tagged with `globaltag`
 ~~~
 
+#### Log-rotation
+
+If you're logging into an SQLite file you may want to rotate the logfiles from time to time.
+To do that just use the following procedure:
+
+1. Rename the logfile that the process currently logs into
+2. Send a HUP signal to the node process
+
+The logging library will then close the old logfile and start anew with an empty file.
+Please do not use "copy and truncate" rotation as this makes SQLite sad (meaning: you
+will probably corrupt the "old" file and the logger will crash at the next log statement)
+
+Command line example:
+
+~~~bash
+mv logfile.db logfile.db.1
+pkill -F pidfile.pid -HUP
+~~~
+
 ## DB Schema
 
 `TODO`

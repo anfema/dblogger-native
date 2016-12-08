@@ -4,16 +4,15 @@
 using std::cerr;
 using std::exception;
 
-DBConnection::DBConnection(string db_type, string db_host, int db_port, string db_user, string db_password, string db_name, string prefix) {
-	db_type_ = db_type;
-	db_host_ = db_host;
-	db_port_ = db_port;
-	db_user_ = db_user;
-	db_password_ = db_password;
-	db_name_ = db_name;
-	this->prefix = prefix;
+DBConnection::DBConnection(
+	string db_type, string db_host, int db_port,
+	string db_user, string db_password, string db_name,
+	string prefix) :
+		db_type(db_type), db_host(db_host), db_port(db_port),
+		db_user(db_user), db_password(db_password), db_name(db_name),
+		prefix(prefix) {
 
-	if (db_type_ == "sqlite") {
+	if (db_type == "sqlite") {
 		int result = sqlite3_open_v2(db_name.c_str(), &sqlite, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
 		if ((result != SQLITE_OK) && (sqlite != NULL)) {
 			cerr << "Could not initialize DB: " << sqlite3_errmsg(sqlite) << "\n";
@@ -23,7 +22,7 @@ DBConnection::DBConnection(string db_type, string db_host, int db_port, string d
 		if (sqlite != NULL) {
 			valid = true;
 		}
-	} else if (db_type_ == "postgres") {
+	} else if (db_type == "postgres") {
 		// TODO: Initialize Postgres
 	} else {
 		// not valid
@@ -36,7 +35,7 @@ DBConnection::DBConnection(string db_type, string db_host, int db_port, string d
 }
 
 DBConnection::~DBConnection() {
-	if ((db_type_ == "sqlite") && (sqlite != NULL)) {
+	if ((db_type == "sqlite") && (sqlite != NULL)) {
 		sqlite3_close_v2(sqlite);
 		sqlite = NULL;
 	}
@@ -48,7 +47,7 @@ DBConnection::~DBConnection() {
 
 void
 DBConnection::setup() {
-	if (db_type_ == "sqlite") {
+	if (db_type == "sqlite") {
 		execute("CREATE TABLE IF NOT EXISTS `" + prefix + "_hosts` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `name` VARCHAR(255) NOT NULL, UNIQUE (id), CONSTRAINT 'host_unique' UNIQUE (name COLLATE NOCASE));");
 		execute("CREATE TABLE IF NOT EXISTS `" + prefix + "_logger` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `name` VARCHAR(255) NOT NULL, UNIQUE (id), CONSTRAINT 'name_unique' UNIQUE (name COLLATE NOCASE));");
 		execute("CREATE TABLE IF NOT EXISTS `" + prefix + "_tag` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `name` VARCHAR(255) NOT NULL, UNIQUE (id), CONSTRAINT 'tag_unique' UNIQUE (name COLLATE NOCASE));");
@@ -56,7 +55,7 @@ DBConnection::setup() {
 		execute("CREATE TABLE IF NOT EXISTS `" + prefix + "_function` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `name` VARCHAR(1024) NOT NULL, `lineNumber` INTEGER DEFAULT NULL, `sourceID` INTEGER REFERENCES `logger_source` (`id`) ON DELETE SET NULL ON UPDATE CASCADE, UNIQUE (id), CONSTRAINT 'func_unique' UNIQUE (name, lineNumber, sourceID));");
 		execute("CREATE TABLE IF NOT EXISTS `" + prefix + "_log` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `level` INTEGER NOT NULL, `message` TEXT, `pid` INTEGER NOT NULL, `time` INTEGER NOT NULL, `functionID` INTEGER REFERENCES `logger_function` (`id`) ON DELETE SET NULL ON UPDATE CASCADE, `loggerID` INTEGER REFERENCES `logger_logger` (`id`) ON DELETE SET NULL ON UPDATE CASCADE, `hostnameID` INTEGER REFERENCES `logger_hosts` (`id`) ON DELETE SET NULL ON UPDATE CASCADE, UNIQUE (id));");
 		execute("CREATE TABLE IF NOT EXISTS `logger_log_tag` (`tagID` INTEGER NOT NULL REFERENCES `logger_tag` (`id`) ON DELETE CASCADE ON UPDATE CASCADE, `logID` INTEGER NOT NULL REFERENCES `logger_log` (`id`) ON DELETE CASCADE ON UPDATE CASCADE, PRIMARY KEY (`tagID`, `logID`));");
-	} else if (db_type_ == "postgres") {
+	} else if (db_type == "postgres") {
 		// TODO: Setup postgres tables
 	}
 }
@@ -97,7 +96,7 @@ DBConnection::insert(string sql) {
 
 int
 DBConnection::insert(string sql, map<string, string> parameters) {
-	if (db_type_ == "sqlite") {
+	if (db_type == "sqlite") {
 		sqlite3_mutex* mtx = sqlite3_db_mutex(sqlite);
 		sqlite3_mutex_enter(mtx);
 
@@ -128,7 +127,7 @@ bool
 DBConnection::execute(string sql, map<string, string> parameters) {
 	if (!valid) return false;
 
-	if (db_type_ == "sqlite") {
+	if (db_type == "sqlite") {
 		sqlite3_mutex* mtx = sqlite3_db_mutex(sqlite);
 		sqlite3_mutex_enter(mtx);
 
@@ -162,7 +161,7 @@ DBConnection::query(string sql, map<string, string> parameters) {
 	auto result = new vector< map<string, string> >();
 	if (!valid) return result;
 
-	if (db_type_ == "sqlite") {
+	if (db_type == "sqlite") {
 		sqlite3_mutex* mtx = sqlite3_db_mutex(sqlite);
 		sqlite3_mutex_enter(mtx);
 

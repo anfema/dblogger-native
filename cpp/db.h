@@ -24,18 +24,18 @@ class DBConnection {
 		int insert(string sql, map<string, string> parameters);
 
 		bool valid;
-		string prefix;
 		string logger_name;
+
+		const string db_type;
+		const string db_host;
+		const int db_port;
+		const string db_user;
+		const string db_password;
+		const string db_name;
+		const string prefix;
 
 	private:
 		void setup();
-
-		string db_type_;
-		string db_host_;
-		int db_port_;
-		string db_user_;
-		string db_password_;
-		string db_name_;
 
 		sqlite3 *sqlite;
 };

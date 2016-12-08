@@ -31,6 +31,7 @@ class Logger : public node::ObjectWrap {
 		static void New(const FunctionCallbackInfo<Value>& info);
 
 		static void Tag(const FunctionCallbackInfo<Value>& info);
+		static void Rotate(const FunctionCallbackInfo<Value>& info);
 
 		static void Trace(const FunctionCallbackInfo<Value>& info);
 		static void Debug(const FunctionCallbackInfo<Value>& info);
