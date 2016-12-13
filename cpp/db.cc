@@ -48,6 +48,8 @@ DBConnection::~DBConnection() {
 void
 DBConnection::setup() {
 	if (db_type == "sqlite") {
+		execute("PRAGMA synchronous = 0;");
+		execute("PRAGMA auto_vacuum = 0;");
 		execute("CREATE TABLE IF NOT EXISTS `" + prefix + "_hosts` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `name` VARCHAR(255) NOT NULL, UNIQUE (id), CONSTRAINT 'host_unique' UNIQUE (name COLLATE NOCASE));");
 		execute("CREATE TABLE IF NOT EXISTS `" + prefix + "_logger` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `name` VARCHAR(255) NOT NULL, UNIQUE (id), CONSTRAINT 'name_unique' UNIQUE (name COLLATE NOCASE));");
 		execute("CREATE TABLE IF NOT EXISTS `" + prefix + "_tag` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `name` VARCHAR(255) NOT NULL, UNIQUE (id), CONSTRAINT 'tag_unique' UNIQUE (name COLLATE NOCASE));");
