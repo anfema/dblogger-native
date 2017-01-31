@@ -24,6 +24,20 @@ DBConnection::DBConnection(
 		}
 	} else if (db_type == "postgres") {
 		// TODO: Initialize Postgres
+		string connString = "host='" + db_host + "' port='" + std::to_string(db_port) + "' dbname='" + db_name + "' user='" + db_user + "' password='" + db_password + "'";
+		cerr << "Conn String: " << connString << "\n";
+		pg = PQconnectdb(connString.c_str());
+		if (pg == NULL) {
+			cerr << "Could not initialize DB: PQConnectdb returned NULL\n";
+		} else {
+			if (PQstatus(pg) != CONNECTION_OK) {
+				// TODO: log error
+				cerr << "Could not initialize DB: " << PQstatus(pg) << "\n";
+				PQfinish(pg);
+			} else {
+				valid = true;
+			}
+		}
 	} else {
 		// not valid
 		return;
@@ -38,6 +52,10 @@ DBConnection::~DBConnection() {
 	if ((db_type == "sqlite") && (sqlite != NULL)) {
 		sqlite3_close_v2(sqlite);
 		sqlite = NULL;
+	}
+	if ((db_type == "postgres") && (pg != NULL)) {
+		PQfinish(pg);
+		pg = NULL;
 	}
 }
 
@@ -58,7 +76,93 @@ DBConnection::setup() {
 		execute("CREATE TABLE IF NOT EXISTS `" + prefix + "_log` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `level` INTEGER NOT NULL, `message` TEXT, `pid` INTEGER NOT NULL, `time` INTEGER NOT NULL, `functionID` INTEGER REFERENCES `logger_function` (`id`) ON DELETE SET NULL ON UPDATE CASCADE, `loggerID` INTEGER REFERENCES `logger_logger` (`id`) ON DELETE SET NULL ON UPDATE CASCADE, `hostnameID` INTEGER REFERENCES `logger_hosts` (`id`) ON DELETE SET NULL ON UPDATE CASCADE, UNIQUE (id));");
 		execute("CREATE TABLE IF NOT EXISTS `logger_log_tag` (`tagID` INTEGER NOT NULL REFERENCES `logger_tag` (`id`) ON DELETE CASCADE ON UPDATE CASCADE, `logID` INTEGER NOT NULL REFERENCES `logger_log` (`id`) ON DELETE CASCADE ON UPDATE CASCADE, PRIMARY KEY (`tagID`, `logID`));");
 	} else if (db_type == "postgres") {
-		// TODO: Setup postgres tables
+		// Hosts + Indexes
+		execute("CREATE SEQUENCE IF NOT EXISTS \"" + prefix + "_hosts_id_seq\";");
+		execute("CREATE TABLE IF NOT EXISTS \"" + prefix + "_hosts\" ("
+			"	\"id\" int4 NOT NULL DEFAULT nextval(\"" + prefix + "_hosts_id_seq\"),"
+			"	\"name\" varchar(1024) NOT NULL COLLATE \"default\","
+			"	CONSTRAINT \"" + prefix + "_logger_hosts_id_key\" PRIMARY KEY (\"id\") NOT DEFERRABLE INITIALLY IMMEDIATE,"
+			"	CONSTRAINT \"" + prefix + "_host_name_idx\" UNIQUE (\"name\") NOT DEFERRABLE INITIALLY IMMEDIATE"
+			");"
+		);
+		execute("CREATE UNIQUE INDEX IF NOT EXISTS \"" + prefix + "_host_name_idx\" ON \"" + prefix + "_hosts\" USING btree(\"name\" COLLATE \"default\" \"pg_catalog\".\"text_ops\" ASC NULLS LAST);");
+		execute("CREATE UNIQUE INDEX IF NOT EXISTS \"" + prefix + "_logger_hosts_id_key\" ON \"" + prefix + "_hosts\" USING btree(\"id\" \"pg_catalog\".\"int4_ops\" ASC NULLS LAST);");
+
+		// Logger + Indexes
+		execute("CREATE SEQUENCE IF NOT EXISTS \"" + prefix + "_logger_id_seq\";");
+		execute("CREATE TABLE IF NOT EXISTS \"" + prefix + "_logger\" ("
+			"	\"id\" int4 NOT NULL DEFAULT nextval(\"" + prefix + "_logger_id_seq\"),"
+			"	\"name\" varchar(255) NOT NULL COLLATE \"default\","
+			"	CONSTRAINT \"" + prefix + "_logger_id_key\" PRIMARY KEY (\"id\") NOT DEFERRABLE INITIALLY IMMEDIATE,"
+			"	CONSTRAINT \"" + prefix + "_logger_name_idx\" UNIQUE (\"name\") NOT DEFERRABLE INITIALLY IMMEDIATE"
+			");"
+		);
+		execute("CREATE UNIQUE INDEX IF NOT EXISTS \"" + prefix + "_logger_name_idx\" ON \"" + prefix + "_logger\" USING btree(\"name\" COLLATE \"default\" \"pg_catalog\".\"text_ops\" ASC NULLS LAST);");
+		execute("CREATE UNIQUE INDEX IF NOT EXISTS \"" + prefix + "_logger_logger_id_key\" ON \"" + prefix + "_logger\" USING btree(\"id\" \"pg_catalog\".\"int4_ops\" ASC NULLS LAST);");
+
+		// Tag + Indexes
+		execute("CREATE SEQUENCE IF NOT EXISTS \"" + prefix + "_tag_id_seq\";");
+		execute("CREATE TABLE IF NOT EXISTS \"" + prefix + "_tag\" ("
+			"	\"id\" int4 NOT NULL DEFAULT nextval(\"" + prefix + "_tag_id_seq\"),"
+			"	\"name\" varchar(255) NOT NULL COLLATE \"default\","
+			"	CONSTRAINT \"" + prefix + "_logger_tag_id_key\" PRIMARY KEY (\"id\") NOT DEFERRABLE INITIALLY IMMEDIATE,"
+			"	CONSTRAINT \"" + prefix + "_tag_name_idx\" UNIQUE (\"name\") NOT DEFERRABLE INITIALLY IMMEDIATE"
+			");"
+		);
+		execute("CREATE UNIQUE INDEX IF NOT EXISTS \"" + prefix + "_logger_tag_id_key\" ON \"" + prefix + "_tag\" USING btree(\"id\" \"pg_catalog\".\"int4_ops\" ASC NULLS LAST);");
+		execute("CREATE UNIQUE INDEX IF NOT EXISTS \"" + prefix + "_tag_name_idx\" ON \"" + prefix + "_tag\" USING btree(\"name\" COLLATE \"default\" \"pg_catalog\".\"text_ops\" ASC NULLS LAST);");
+
+		// Source + Indexes
+		execute("CREATE SEQUENCE IF NOT EXISTS \"" + prefix + "_source_id_seq\";");
+		execute("CREATE TABLE IF NOT EXISTS\"" + prefix + "_source\" ("
+			"	\"id\" int4 NOT NULL DEFAULT nextval(\"" + prefix + "_source_id_seq\"),"
+			"	\"path\" varchar(1024) NOT NULL COLLATE \"default\","
+			"	CONSTRAINT \"" + prefix + "_logger_source_id_key\" PRIMARY KEY (\"id\") NOT DEFERRABLE INITIALLY IMMEDIATE,"
+			"	CONSTRAINT \"" + prefix + "_source_path_idx\" UNIQUE (\"path\") NOT DEFERRABLE INITIALLY IMMEDIATE"
+			");"
+		);
+		execute("CREATE UNIQUE INDEX IF NOT EXISTS \"" + prefix + "_logger_source_id_key\" ON \"" + prefix + "_source\" USING btree(\"id\" \"pg_catalog\".\"int4_ops\" ASC NULLS LAST);");
+		execute("CREATE UNIQUE INDEX IF NOT EXISTS \"" + prefix + "_source_path_idx\" ON \"" + prefix + "_source\" USING btree(\"path\" COLLATE \"default\" \"pg_catalog\".\"text_ops\" ASC NULLS LAST);");
+
+		// Function + Indexes
+		execute("CREATE SEQUENCE IF NOT EXISTS \"" + prefix + "_function_id_seq\";");
+		execute("CREATE TABLE IF NOT EXISTS \"" + prefix + "_function\" ("
+			"	\"id\" int4 NOT NULL DEFAULT nextval(\"" + prefix + "_function_id_seq\"),"
+			"	\"name\" varchar(1024) NOT NULL COLLATE \"default\","
+			"	\"lineNumber\" int4, \"sourceID\" int4,"
+			"	CONSTRAINT \"" + prefix + "_function_id_key\" PRIMARY KEY (\"id\") NOT DEFERRABLE INITIALLY IMMEDIATE,"
+			"	CONSTRAINT \"" + prefix + "_source_fk\" FOREIGN KEY (\"sourceID\") REFERENCES \"" + prefix + "_source\" (\"id\") ON UPDATE CASCADE ON DELETE CASCADE NOT DEFERRABLE INITIALLY IMMEDIATE,"
+			"	CONSTRAINT \"" + prefix + "_func_uniq\" UNIQUE (\"name\",\"lineNumber\",\"sourceID\") NOT DEFERRABLE INITIALLY IMMEDIATE"
+			");"
+		);
+		execute("CREATE UNIQUE INDEX IF NOT EXISTS \"" + prefix + "_function_id_key\" ON \"" + prefix + "_function\" USING btree(\"id\" \"pg_catalog\".\"int4_ops\" ASC NULLS LAST);");
+		execute("CREATE UNIQUE INDEX IF NOT EXISTS \"" + prefix + "_func_uniq\" ON \"" + prefix + "_function\" USING btree(\"name\" COLLATE \"default\" \"pg_catalog\".\"text_ops\" ASC NULLS LAST, \"lineNumber\" \"pg_catalog\".\"int4_ops\" ASC NULLS LAST, \"sourceID\" \"pg_catalog\".\"int4_ops\" ASC NULLS LAST);");
+		execute("CREATE INDEX IF NOT EXISTS \"" + prefix + "_function_name_idx\" ON \"" + prefix + "_function\" USING btree(\"name\" COLLATE \"default\" \"pg_catalog\".\"text_ops\" ASC NULLS LAST);");
+
+		// Log + Indexes
+		execute("CREATE SEQUENCE IF NOT EXISTS \"" + prefix + "_log_id_seq\";");
+		execute("CREATE TABLE IF NOT EXISTS \"" + prefix + "_log\" ("
+			"	\"id\" int4 NOT NULL DEFAULT nextval(\"" + prefix + "_log_id_seq\"),"
+			"	\"level\" int4 NOT NULL DEFAULT 0, \"message\" text COLLATE \"default\","
+			"	\"pid\" int4 NOT NULL, \"time\" int4 NOT NULL, \"functionID\" int4, \"loggerID\" int4, \"hostnameID\" int4,"
+			"	CONSTRAINT \"" + prefix + "_log_id_key\" PRIMARY KEY (\"id\") NOT DEFERRABLE INITIALLY IMMEDIATE,"
+			"	CONSTRAINT \"" + prefix + "_log_function_fk\" FOREIGN KEY (\"functionID\") REFERENCES \"" + prefix + "_function\" (\"id\") ON UPDATE CASCADE ON DELETE CASCADE NOT DEFERRABLE INITIALLY IMMEDIATE,"
+			"	CONSTRAINT \"" + prefix + "_log_host_fk\" FOREIGN KEY (\"hostnameID\") REFERENCES \"" + prefix + "_hosts\" (\"id\") ON UPDATE CASCADE ON DELETE CASCADE NOT DEFERRABLE INITIALLY IMMEDIATE,"
+			"	CONSTRAINT \"" + prefix + "_log_logger_fk\" FOREIGN KEY (\"loggerID\") REFERENCES \"" + prefix + "_logger\" (\"id\") ON UPDATE CASCADE ON DELETE CASCADE NOT DEFERRABLE INITIALLY IMMEDIATE"
+			");"
+		);
+		execute("CREATE UNIQUE INDEX IF NOT EXISTS \"" + prefix + "_log_id_key\" ON \"" + prefix + "_log\" USING btree(\"id\" \"pg_catalog\".\"int4_ops\" ASC NULLS LAST);");
+		execute("CREATE INDEX IF NOT EXISTS \"" + prefix + "_log_pid_idx\" ON \"" + prefix + "_log\" USING btree(pid \"pg_catalog\".\"int4_ops\" ASC NULLS LAST, \"hostnameID\" \"pg_catalog\".\"int4_ops\" ASC NULLS LAST);");
+
+		// Log->Tag + Indexes
+		execute("CREATE TABLE IF NOT EXISTS \"" + prefix + "_log_tag\" ("
+			"	\"tagID\" int4 NOT NULL, \"logID\" int4 NOT NULL,"
+			"	CONSTRAINT \"" + prefix + "_log_tag_id_key\" PRIMARY KEY (\"tagID\", \"logID\") NOT DEFERRABLE INITIALLY IMMEDIATE,"
+			"	CONSTRAINT \"" + prefix + "_log_tag_log_fk\" FOREIGN KEY (\"logID\") REFERENCES \"" + prefix + "_log\" (\"id\") ON UPDATE CASCADE ON DELETE CASCADE NOT DEFERRABLE INITIALLY IMMEDIATE,"
+			"	CONSTRAINT \"" + prefix + "_log_tag_tag_fk\" FOREIGN KEY (\"tagID\") REFERENCES \"" + prefix + "_tag\" (\"id\") ON UPDATE CASCADE ON DELETE CASCADE NOT DEFERRABLE INITIALLY IMMEDIATE"
+			");"
+		);
+		execute("CREATE INDEX IF NOT EXISTS \"" + prefix + "_log_tag_id_key\" ON \"" + prefix + "_log_tag\" USING btree(\"tagID\" \"pg_catalog\".\"int4_ops\" ASC NULLS LAST, \"logID\" \"pg_catalog\".\"int4_ops\" ASC NULLS LAST);");
 	}
 }
 
@@ -147,6 +251,7 @@ DBConnection::execute(string sql, map<string, string> parameters) {
 		sqlite3_mutex_leave(mtx);
 	} else {
 		// TODO: Postgres implementation of execute
+		cerr << sql << "\n";
 	}
 
 	// Unknown DB type?

@@ -10,19 +10,20 @@
         "cpp/stdout_logger.cc"
       ],
       "include_dirs": [
-        '/usr/include/'
+        '/usr/include/',
+		'/usr/local/include/'
       ],
       "conditions": [
         [
           'OS=="mac"', {
-            'libraries' : ['-lsqlite3 -L/usr/lib'],
+            'libraries' : ['-lsqlite3 -L/usr/lib -lpq'],
             "xcode_settings": {
                 'OTHER_CPLUSPLUSFLAGS' : ['-std=c++11','-stdlib=libc++'],
                 'OTHER_LDFLAGS': ['-stdlib=libc++'],
                 'MACOSX_DEPLOYMENT_TARGET': '10.7' }
             },
           { # Other OS
-             'libraries' : ['-lsqlite3 -L/usr/lib']
+             'libraries' : ['-lsqlite3 -L/usr/lib -std=c++11']
           }
         ]
       ]

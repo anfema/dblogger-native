@@ -5,7 +5,8 @@
 #include <map>
 #include <vector>
 
-#include "sqlite3.h"
+#include <sqlite3.h>
+#include <libpq-fe.h>
 
 using std::string;
 using std::map;
@@ -38,6 +39,7 @@ class DBConnection {
 		void setup();
 
 		sqlite3 *sqlite;
+		PGconn *pg;
 };
 
 #endif
