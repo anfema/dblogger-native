@@ -42,7 +42,6 @@ DBConnection::DBConnection(
 			connString = connString + " password='" + db_password + "'"; // so password may not contain a ''
 		}
 
-		cerr << "Conn String: " << connString << "\n";
 		pg = PQconnectdb(connString.c_str());
 		if (pg == NULL) {
 			cerr << "Could not initialize DB: PQConnectdb returned NULL\n";
