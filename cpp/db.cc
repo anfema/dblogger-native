@@ -1,8 +1,10 @@
 #include <iostream>
+#include <string>
 #include "db.h"
 
 using std::cerr;
 using std::exception;
+using std::memcpy;
 
 DBConnection::DBConnection(
 	string db_type, string db_host, int db_port,
