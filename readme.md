@@ -28,7 +28,7 @@ const logger = require('dblogger')();
 
 Available options in the options object:
 
-- `type`: `sqlite` (more planned)
+- `type`: `sqlite` or `postgres` (ask me if you need more)
 - `name`: db name to use (path to db file for `sqlite`)
 - `host`: db host (invalid for sqlite)
 - `port`: port number for db server (invalid for sqlite) (optional)

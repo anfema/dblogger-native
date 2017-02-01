@@ -18,11 +18,12 @@ class DBConnection {
 		DBConnection(string db_type, string db_host, int db_port, string db_user, string db_password, string db_name, string prefix);
 		~DBConnection();
 		bool execute(string sql);
-		bool execute(string sql, map<string, string> parameters);
+		bool execute(string sql, vector<string> parameters); // not available for all DB implementations
 		vector< map<string, string> >* query(string sql);
-		vector< map<string, string> >* query(string sql, map<string, string> parameters);
+		vector< map<string, string> >* query(string sql, vector<string> parameters);
 		int insert(string sql);
-		int insert(string sql, map<string, string> parameters);
+		int insert(string sql, vector<string> parameters);
+		int insert(string sql, vector<string> parameters, bool ignore_conflicts);
 
 		bool valid;
 		string logger_name;

@@ -11,6 +11,13 @@ const logger = new Logger({
 	name: "./test.db",
 	stdout: true,
 });
+
+// const logger = new Logger({
+// 	type: "postgres",
+// 	name: "johannes",
+// 	host: 'localhost',
+// 	stdout: true,
+// });
 console.log(logger);
 
 process.nextTick(() => {

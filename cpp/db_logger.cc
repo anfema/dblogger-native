@@ -10,67 +10,80 @@ static string saved_logger_id = "0";
 static auto tag_cache = map<string, string>();
 
 void log_db(DBConnection *connection, int level, time_t date, string hostname, int pid, string filename, string function, int line, int column, vector<string>parts, set<string>tags) {
-	connection->execute("BEGIN TRANSACTION"); // TODO: Fix for postgres
+	connection->execute("BEGIN TRANSACTION");
 
 	if (saved_logger_name != &connection->logger_name) {
 		// logger name changed
 		saved_logger_name = &connection->logger_name;
 
-		// insert logger name into DB, will ignore the insert statement when a constraint error occurs
-		auto replacements = map<string, string>();
-		replacements[":logger"] = *saved_logger_name;
-		connection->execute("INSERT OR IGNORE INTO `" + connection->prefix + "_logger` (name) VALUES (:logger);", replacements); // TODO: Fix for postgres
+		auto replacements = vector<string>();
+		replacements.push_back(*saved_logger_name);
 
 		// fetch id
-		auto result = connection->query("SELECT id FROM `" + connection->prefix + "_logger` WHERE name = :logger", replacements);
-		saved_logger_id = result->front()[string("id")];
+		auto result = connection->query("SELECT id FROM " + connection->prefix + "_logger WHERE name = $1", replacements);
+		if (result->size() > 0) {
+			saved_logger_id = result->front()[string("id")];
+		} else {
+			// insert logger name into DB, will ignore the insert statement when a constraint error occurs
+			saved_logger_id = to_string(connection->insert("INTO " + connection->prefix + "_logger (name) VALUES ($1)", replacements));
+		}
 	}
 
 	// insert host name into DB, will ignore the insert statement when a constraint error occurs
-	auto replacements = map<string, string>();
-	replacements[":host"] = hostname;
-	connection->execute("INSERT OR IGNORE INTO `" + connection->prefix + "_hosts` (name) VALUES (:host);", replacements); // TODO: Fix for postgres
+	auto replacements = vector<string>();
+	replacements.push_back(hostname);
 
-	// fetch id
-	auto result = connection->query("SELECT id FROM `" + connection->prefix + "_hosts` WHERE name = :host", replacements);
-	string hostname_id = result->front()[string("id")];
-
+	auto result = connection->query("SELECT id FROM " + connection->prefix + "_hosts WHERE name = $1", replacements);
+	string hostname_id;
+	if (result->size() > 0) {
+		hostname_id = result->front()[string("id")];
+	} else {
+		hostname_id = to_string(connection->insert("INTO " + connection->prefix + "_hosts (name) VALUES ($1)", replacements));
+	}
 
 	// insert source path into DB, will ignore the insert statement when a constraint error occurs
-	replacements = map<string, string>();
-	replacements[":path"] = filename;
-	connection->execute("INSERT OR IGNORE INTO `" + connection->prefix + "_source` (path) VALUES (:path);", replacements); // TODO: Fix for postgres
+	replacements = vector<string>();
+	replacements.push_back(filename);
 
-	// fetch id
-	result = connection->query("SELECT id FROM `" + connection->prefix + "_source` WHERE path = :path", replacements);
-	string source_id = result->front()[string("id")];
+	result = connection->query("SELECT id FROM " + connection->prefix + "_source WHERE path = $1", replacements);
+	string source_id;
+	if (result->size() > 0) {
+		source_id = result->front()[string("id")];
+	} else {
+		source_id = to_string(connection->insert("INTO " + connection->prefix + "_source (path) VALUES ($1)", replacements));
+	}
 
 	// insert function definition into DB, will ignore the insert statement when a constraint error occurs
-	replacements = map<string, string>();
-	replacements[":name"] = function;
-	replacements[":line"] = to_string(line);
-	replacements[":sourceID"] = source_id;
-	connection->execute("INSERT OR IGNORE INTO `" + connection->prefix + "_function` (name, lineNumber, sourceID) VALUES (:name, :line, :sourceID);", replacements); // TODO: Fix for postgres
+	replacements = vector<string>();
+	replacements.push_back(function);
+	replacements.push_back(to_string(line));
+	replacements.push_back(source_id);
 
-	// fetch id
-	result = connection->query("SELECT id FROM `" + connection->prefix + "_function` WHERE name = :name AND lineNumber = :line AND sourceID = :sourceID", replacements);
-	string function_id = result->front()[string("id")];
+	result = connection->query("SELECT id FROM " + connection->prefix + "_function WHERE name = $1 AND \"lineNumber\" = $2 AND \"sourceID\" = $3", replacements);
+	string function_id;
+	if (result->size() > 0) {
+		function_id = result->front()[string("id")];
+	} else {
+		function_id = to_string(connection->insert("INTO " + connection->prefix + "_function (name, \"lineNumber\", \"sourceID\") VALUES ($1, $2, $3)", replacements));
+	}
+
+	connection->execute("COMMIT TRANSACTION");
 
 	// insert log entry
 	string message = "";
 	for (string part : parts) {
 		message += part + " ";
 	}
-	replacements = map<string, string>();
-	replacements[":level"] = to_string(level);
-	replacements[":message"] = message;
-	replacements[":pid"] = to_string(pid);
-	replacements[":date"] = to_string(date);
-	replacements[":loggerID"] = saved_logger_id;
-	replacements[":hostID"] = hostname_id;
-	replacements[":functionID"] = function_id;
+	replacements = vector<string>();
+	replacements.push_back(to_string(level));
+	replacements.push_back(message);
+	replacements.push_back(to_string(pid));
+	replacements.push_back(to_string(date));
+	replacements.push_back(saved_logger_id);
+	replacements.push_back(hostname_id);
+	replacements.push_back(function_id);
 
-	auto entry_id = connection->insert("INSERT INTO `" + connection->prefix + "_log` (`level`, `message`, `pid`, `time`, `loggerID`, `hostnameID`, `functionID`) VALUES (:level, :message, :pid, :date, :loggerID, :hostID, :functionID);", replacements);
+	auto entry_id = connection->insert("INTO " + connection->prefix + "_log (level, message, pid, time, \"loggerID\", \"hostnameID\", \"functionID\") VALUES ($1, $2, $3, $4, $5, $6, $7)", replacements);
 
 	// fetch or create Tags
 	auto tagIDs = vector<string>();
@@ -82,24 +95,25 @@ void log_db(DBConnection *connection, int level, time_t date, string hostname, i
 		}
 
 		// insert tag into DB, will ignore the insert statement when a constraint error occurs
-		auto replacements = map<string, string>();
-		replacements[":name"] = tag;
-		connection->execute("INSERT OR IGNORE INTO `" + connection->prefix + "_tag` (name) VALUES (:name);", replacements); // TODO: Fix for postgres
+		auto replacements = vector<string>();
+		replacements.push_back(tag);
 
-		// fetch id
-		auto result = connection->query("SELECT id FROM `" + connection->prefix + "_tag` WHERE name = :name", replacements);
-		string tag_id = result->front()[string("id")];
+		auto result = connection->query("SELECT id FROM " + connection->prefix + "_tag WHERE name = $1", replacements);
+		string tag_id;
+		if (result->size() > 0) {
+			tag_id = result->front()[string("id")];
+		} else {
+			tag_id = to_string(connection->insert("INTO " + connection->prefix + "_tag (name) VALUES ($1)", replacements));
+		}
 
 		tag_cache[tag] = tag_id;
 		tagIDs.push_back(tag_id);
 	}
 
-	replacements = map<string, string>();
-	replacements[":logID"] = to_string(entry_id);
 	for (string tagID : tagIDs) {
-		replacements[":tagID"] = tagID;
-		connection->execute("INSERT INTO `" + connection->prefix + "_log_tag` (`tagID`, `logID`) VALUES (:tagID, :logID);", replacements);
+		replacements = vector<string>();
+		replacements.push_back(tagID);
+		replacements.push_back(to_string(entry_id));
+		connection->insert("INTO " + connection->prefix + "_log_tag (\"tagID\", \"logID\") VALUES ($1, $2)", replacements);
 	}
-
-	connection->execute("COMMIT TRANSACTION"); // TODO: Fix for postgres
 }

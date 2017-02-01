@@ -23,15 +23,30 @@ DBConnection::DBConnection(
 			valid = true;
 		}
 	} else if (db_type == "postgres") {
-		// TODO: Initialize Postgres
-		string connString = "host='" + db_host + "' port='" + std::to_string(db_port) + "' dbname='" + db_name + "' user='" + db_user + "' password='" + db_password + "'";
+		string connString = "";
+
+		if (db_host != "undefined") {
+			connString = connString + " host='" + db_host + "'";
+		}
+		if (db_port > 0) {
+			connString = connString + " port='" + std::to_string(db_port) + "'";
+		}
+		if (db_name != "undefined") {
+			connString = connString + " dbname='" + db_name + "'";
+		}
+		if (db_user != "undefined") {
+			connString = connString + " user='" + db_user + "'";
+		}
+		if (db_password != "undefined") {
+			connString = connString + " password='" + db_password + "'"; // so password may not contain a ''
+		}
+
 		cerr << "Conn String: " << connString << "\n";
 		pg = PQconnectdb(connString.c_str());
 		if (pg == NULL) {
 			cerr << "Could not initialize DB: PQConnectdb returned NULL\n";
 		} else {
 			if (PQstatus(pg) != CONNECTION_OK) {
-				// TODO: log error
 				cerr << "Could not initialize DB: " << PQstatus(pg) << "\n";
 				PQfinish(pg);
 			} else {
@@ -79,7 +94,7 @@ DBConnection::setup() {
 		// Hosts + Indexes
 		execute("CREATE SEQUENCE IF NOT EXISTS \"" + prefix + "_hosts_id_seq\";");
 		execute("CREATE TABLE IF NOT EXISTS \"" + prefix + "_hosts\" ("
-			"	\"id\" int4 NOT NULL DEFAULT nextval(\"" + prefix + "_hosts_id_seq\"),"
+			"	\"id\" int4 NOT NULL DEFAULT nextval('" + prefix + "_hosts_id_seq'),"
 			"	\"name\" varchar(1024) NOT NULL COLLATE \"default\","
 			"	CONSTRAINT \"" + prefix + "_logger_hosts_id_key\" PRIMARY KEY (\"id\") NOT DEFERRABLE INITIALLY IMMEDIATE,"
 			"	CONSTRAINT \"" + prefix + "_host_name_idx\" UNIQUE (\"name\") NOT DEFERRABLE INITIALLY IMMEDIATE"
@@ -91,7 +106,7 @@ DBConnection::setup() {
 		// Logger + Indexes
 		execute("CREATE SEQUENCE IF NOT EXISTS \"" + prefix + "_logger_id_seq\";");
 		execute("CREATE TABLE IF NOT EXISTS \"" + prefix + "_logger\" ("
-			"	\"id\" int4 NOT NULL DEFAULT nextval(\"" + prefix + "_logger_id_seq\"),"
+			"	\"id\" int4 NOT NULL DEFAULT nextval('" + prefix + "_logger_id_seq'),"
 			"	\"name\" varchar(255) NOT NULL COLLATE \"default\","
 			"	CONSTRAINT \"" + prefix + "_logger_id_key\" PRIMARY KEY (\"id\") NOT DEFERRABLE INITIALLY IMMEDIATE,"
 			"	CONSTRAINT \"" + prefix + "_logger_name_idx\" UNIQUE (\"name\") NOT DEFERRABLE INITIALLY IMMEDIATE"
@@ -103,7 +118,7 @@ DBConnection::setup() {
 		// Tag + Indexes
 		execute("CREATE SEQUENCE IF NOT EXISTS \"" + prefix + "_tag_id_seq\";");
 		execute("CREATE TABLE IF NOT EXISTS \"" + prefix + "_tag\" ("
-			"	\"id\" int4 NOT NULL DEFAULT nextval(\"" + prefix + "_tag_id_seq\"),"
+			"	\"id\" int4 NOT NULL DEFAULT nextval('" + prefix + "_tag_id_seq'),"
 			"	\"name\" varchar(255) NOT NULL COLLATE \"default\","
 			"	CONSTRAINT \"" + prefix + "_logger_tag_id_key\" PRIMARY KEY (\"id\") NOT DEFERRABLE INITIALLY IMMEDIATE,"
 			"	CONSTRAINT \"" + prefix + "_tag_name_idx\" UNIQUE (\"name\") NOT DEFERRABLE INITIALLY IMMEDIATE"
@@ -115,7 +130,7 @@ DBConnection::setup() {
 		// Source + Indexes
 		execute("CREATE SEQUENCE IF NOT EXISTS \"" + prefix + "_source_id_seq\";");
 		execute("CREATE TABLE IF NOT EXISTS\"" + prefix + "_source\" ("
-			"	\"id\" int4 NOT NULL DEFAULT nextval(\"" + prefix + "_source_id_seq\"),"
+			"	\"id\" int4 NOT NULL DEFAULT nextval('" + prefix + "_source_id_seq'),"
 			"	\"path\" varchar(1024) NOT NULL COLLATE \"default\","
 			"	CONSTRAINT \"" + prefix + "_logger_source_id_key\" PRIMARY KEY (\"id\") NOT DEFERRABLE INITIALLY IMMEDIATE,"
 			"	CONSTRAINT \"" + prefix + "_source_path_idx\" UNIQUE (\"path\") NOT DEFERRABLE INITIALLY IMMEDIATE"
@@ -127,7 +142,7 @@ DBConnection::setup() {
 		// Function + Indexes
 		execute("CREATE SEQUENCE IF NOT EXISTS \"" + prefix + "_function_id_seq\";");
 		execute("CREATE TABLE IF NOT EXISTS \"" + prefix + "_function\" ("
-			"	\"id\" int4 NOT NULL DEFAULT nextval(\"" + prefix + "_function_id_seq\"),"
+			"	\"id\" int4 NOT NULL DEFAULT nextval('" + prefix + "_function_id_seq'),"
 			"	\"name\" varchar(1024) NOT NULL COLLATE \"default\","
 			"	\"lineNumber\" int4, \"sourceID\" int4,"
 			"	CONSTRAINT \"" + prefix + "_function_id_key\" PRIMARY KEY (\"id\") NOT DEFERRABLE INITIALLY IMMEDIATE,"
@@ -142,7 +157,7 @@ DBConnection::setup() {
 		// Log + Indexes
 		execute("CREATE SEQUENCE IF NOT EXISTS \"" + prefix + "_log_id_seq\";");
 		execute("CREATE TABLE IF NOT EXISTS \"" + prefix + "_log\" ("
-			"	\"id\" int4 NOT NULL DEFAULT nextval(\"" + prefix + "_log_id_seq\"),"
+			"	\"id\" int4 NOT NULL DEFAULT nextval('" + prefix + "_log_id_seq'),"
 			"	\"level\" int4 NOT NULL DEFAULT 0, \"message\" text COLLATE \"default\","
 			"	\"pid\" int4 NOT NULL, \"time\" int4 NOT NULL, \"functionID\" int4, \"loggerID\" int4, \"hostnameID\" int4,"
 			"	CONSTRAINT \"" + prefix + "_log_id_key\" PRIMARY KEY (\"id\") NOT DEFERRABLE INITIALLY IMMEDIATE,"
@@ -191,22 +206,99 @@ sqlite3_stmt *prepare_sqlite_statement(string sql, map<string, string> parameter
 	return stmt;
 }
 
+sqlite3_stmt *prepare_sqlite_statement(string sql, vector<string> parameters, sqlite3 *sqlite) {
+	sqlite3_stmt *stmt = NULL;
+
+	int result = sqlite3_prepare_v2(sqlite, sql.c_str(), sql.size(), &stmt, NULL);
+	if (result != SQLITE_OK) {
+		cerr << "Could not prepare SQL statement " << sql << ": " << sqlite3_errmsg(sqlite) << "\n";
+		return NULL;
+	}
+
+	int index = 1;
+	for (string value : parameters) {
+		result = sqlite3_bind_text(stmt, index, value.c_str(), -1, SQLITE_TRANSIENT);
+		if (result != SQLITE_OK) {
+			cerr << "Could not bind parameter #" << index << ": " << sqlite3_errmsg(sqlite) << "\n";
+	 		return NULL;
+		}
+		index++;
+	}
+
+	return stmt;
+}
+
+PGresult *execute_pg_statement(string sql, vector<string> parameters, PGconn *pg) {
+	int nParams = parameters.size();
+	const char **values = NULL;
+
+	if (nParams > 0) {
+		values = (const char **)malloc(nParams * sizeof(char *));
+
+		int i = 0;
+		for (string value : parameters) {
+			if (value == "NULL") {
+				values[i] = NULL;
+			} else {
+				values[i] = strdup(value.c_str());
+			}
+			i++;
+		}
+	}
+
+	PGresult *result = PQexecParams(
+		pg,
+		sql.c_str(),
+		nParams,
+		NULL, // parameter formats inferred from SQL
+		values,
+		NULL, // only text params, no binaries -> no length needed
+		NULL, // only text params -> no format array needed
+		0 // return text representation
+	);
+
+	if (nParams > 0) {
+		for(int i = 0; i < nParams; i++) {
+			if (values[i]) {
+				free((void *)values[i]);
+			}
+		}
+		free((void *)values);
+	}
+
+	return result;
+}
+
 /*
  * Public API
  */
 
 int
 DBConnection::insert(string sql) {
-	return insert(sql, map<string, string>());
+	return insert(sql, vector<string>());
 }
 
 int
-DBConnection::insert(string sql, map<string, string> parameters) {
+DBConnection::insert(string sql, vector<string> parameters) {
+	return insert(sql, parameters, false);
+}
+
+int
+DBConnection::insert(string sql, vector<string> parameters, bool ignore_conflicts) {
+	if (!valid) return -1;
+
 	if (db_type == "sqlite") {
+		string finished_sql;
+		if (ignore_conflicts) {
+			finished_sql = "INSERT OR IGNORE " + sql;
+		} else{
+			finished_sql = "INSERT " + sql;
+		}
+
 		sqlite3_mutex* mtx = sqlite3_db_mutex(sqlite);
 		sqlite3_mutex_enter(mtx);
 
-		sqlite3_stmt *stmt = prepare_sqlite_statement(sql, parameters, sqlite);
+		sqlite3_stmt *stmt = prepare_sqlite_statement(finished_sql, parameters, sqlite);
 		if (stmt != NULL) {
 			int result = sqlite3_step(stmt);
 			sqlite3_finalize(stmt);
@@ -218,6 +310,35 @@ DBConnection::insert(string sql, map<string, string> parameters) {
 			sqlite3_mutex_leave(mtx);
 			return id;
 		}
+	} else if (db_type == "postgres") {
+		string finished_sql;
+		if (ignore_conflicts) {
+			finished_sql = "INSERT " + sql + " ON CONFLICT DO NOTHING RETURNING *";
+		} else {
+			finished_sql = "INSERT " + sql + " RETURNING *";
+		}
+		PGresult *result = execute_pg_statement(finished_sql, parameters, pg);
+
+		if (result) {
+			int status = PQresultStatus(result);
+			if ((status == PGRES_TUPLES_OK) && (PQntuples(result) == 1)) {
+				// fetch id from result
+				int field_number = PQfnumber(result, "id");
+				int id = -1;
+				if (field_number >= 0) {
+					char *value = PQgetvalue(result, 0, field_number);
+					id = std::atoi(value);
+				}
+				PQclear(result);
+				return id;
+			} else if (status == PGRES_TUPLES_OK) {
+				return -1;
+			} else {
+				cerr << "PostgreSQL Error: (status = " << status << ") " << PQresultErrorMessage(result);
+				PQclear(result);
+			}
+		}
+		cerr << "PostgreSQL Error: Insert failed, Out of memory\n";
 	}
 
 	// should not happen
@@ -226,14 +347,15 @@ DBConnection::insert(string sql, map<string, string> parameters) {
 
 bool
 DBConnection::execute(string sql) {
-	return execute(sql, map<string, string>());
+	return execute(sql, vector<string>());
 }
 
 bool
-DBConnection::execute(string sql, map<string, string> parameters) {
+DBConnection::execute(string sql, vector<string> parameters) {
 	if (!valid) return false;
 
 	if (db_type == "sqlite") {
+		// SQLite implementation of execute
 		sqlite3_mutex* mtx = sqlite3_db_mutex(sqlite);
 		sqlite3_mutex_enter(mtx);
 
@@ -249,9 +371,25 @@ DBConnection::execute(string sql, map<string, string> parameters) {
 			return true;
 		}
 		sqlite3_mutex_leave(mtx);
-	} else {
-		// TODO: Postgres implementation of execute
-		cerr << sql << "\n";
+	} else if (db_type == "postgres") {
+		// Postgres implementation of execute
+		PGresult *result = execute_pg_statement(sql, parameters, pg);
+
+		if (result) {
+			int status = PQresultStatus(result);
+			PQclear(result);
+			if ((status == PGRES_COMMAND_OK) ||
+				(status == PGRES_TUPLES_OK) ||
+				(status == PGRES_EMPTY_QUERY)) {
+				return true;
+			}
+
+			cerr << "PostgreSQL Error:" << PQresultErrorMessage(result);
+			return false;
+		}
+
+		cerr << "PostgreSQL Error: Exec query failed, Out of memory\n";
+		return false;
 	}
 
 	// Unknown DB type?
@@ -260,11 +398,11 @@ DBConnection::execute(string sql, map<string, string> parameters) {
 
 vector< map<string, string> >*
 DBConnection::query(string sql) {
-	return query(sql, map<string, string>());
+	return query(sql, vector<string>());
 }
 
 vector< map<string, string> >*
-DBConnection::query(string sql, map<string, string> parameters) {
+DBConnection::query(string sql, vector<string> parameters) {
 	auto result = new vector< map<string, string> >();
 	if (!valid) return result;
 
@@ -294,7 +432,28 @@ DBConnection::query(string sql, map<string, string> parameters) {
 		}
 		sqlite3_mutex_leave(mtx);
 	} else {
-		// TODO: Postgres implementation of execute
+		PGresult *pg_result = execute_pg_statement(sql, parameters, pg);
+
+		if (pg_result) {
+			int status = PQresultStatus(pg_result);
+			if (status == PGRES_TUPLES_OK) {
+				int cols = PQnfields(pg_result);
+				for(int row = 0; row < PQntuples(pg_result); row++) {
+					auto row_result = map<string, string>();
+					for(int col = 0; col < cols; col++) {
+						auto name = string(PQfname(pg_result, col));
+						auto value = string(PQgetvalue(pg_result, row, col));
+						row_result[name] = value;
+					}
+					result->push_back(row_result);
+				}
+			} else {
+				cerr << "PostgreSQL Error:" << PQresultErrorMessage(pg_result);
+			}
+			PQclear(pg_result);
+		} else {
+			cerr << "PostgreSQL Error: Query failed, Out of memory\n";
+		}
 	}
 
 	return result;
