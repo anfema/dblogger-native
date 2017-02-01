@@ -1,10 +1,9 @@
 #include <iostream>
-#include <string>
+#include <cstring>
 #include "db.h"
 
 using std::cerr;
 using std::exception;
-using std::memcpy;
 
 DBConnection::DBConnection(
 	string db_type, string db_host, int db_port,
@@ -243,7 +242,7 @@ PGresult *execute_pg_statement(string sql, vector<string> parameters, PGconn *pg
 				values[i] = NULL;
 			} else {
 				values[i] = (const char *)std::calloc(1, value.length() + 1);
-				memcpy((void *)values[i], value.c_str(), value.size());
+				std::memcpy((void *)values[i], value.c_str(), value.size());
 			}
 			i++;
 		}
