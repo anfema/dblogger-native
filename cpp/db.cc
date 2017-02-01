@@ -240,7 +240,8 @@ PGresult *execute_pg_statement(string sql, vector<string> parameters, PGconn *pg
 			if (value == "NULL") {
 				values[i] = NULL;
 			} else {
-				values[i] = strdup(value.c_str());
+				values[i] = (const char *)std::calloc(1, value.length() + 1);
+				std::memcpy((void *)values[i], value.c_str(), value.size());
 			}
 			i++;
 		}
