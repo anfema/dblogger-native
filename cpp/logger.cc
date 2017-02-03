@@ -377,6 +377,7 @@ void Logger::Rotate(const FunctionCallbackInfo<Value>& context) {
 			connection->db_name,
 			connection->prefix
 		);
+		new_connection->logger_name = connection->logger_name;
 		delete connection;
 		connection = new_connection;
 	}
