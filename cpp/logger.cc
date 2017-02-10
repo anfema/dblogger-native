@@ -60,6 +60,15 @@ static inline void initializeDB(Isolate *isolate, const Handle<Object> config) {
 		config->Get(String::NewFromUtf8(isolate, "tablePrefix"))
 	));
 
+	string log_level_string = string(*String::Utf8Value(
+		config->Get(String::NewFromUtf8(isolate, "level"))
+	));
+
+	int log_level = -1;
+	if (log_level_string != "undefined") {
+		log_level = config->Get(String::NewFromUtf8(isolate, "level"))->NumberValue();
+	}
+
 	if (prefix == "undefined") {
 		prefix = string("logger");
 	}
@@ -71,12 +80,18 @@ static inline void initializeDB(Isolate *isolate, const Handle<Object> config) {
 
 	// close old connection if set
 	if (connection != NULL) {
+		if (log_level < 0) {
+			log_level = connection->global_log_level;
+		}
 		delete connection;
 		connection = NULL;
 	}
 
 	// create new connection
 	connection = new DBConnection(db_type, db_host, db_port, db_user, db_password, db_name, prefix);
+	if (log_level >= 0) {
+		connection->global_log_level = log_level;
+	}
 }
 
 // JSON.stringify() a value
@@ -248,6 +263,8 @@ void Logger::New(const FunctionCallbackInfo<Value>& args) {
 				Handle<Value> level = config->Get(String::NewFromUtf8(isolate, "level"));
 				if (level->IsNumber()) {
 					obj->level = level->NumberValue();
+				} else {
+					obj->level = connection->global_log_level;
 				}
 
 				// additionally log to stdout?
@@ -266,11 +283,14 @@ void Logger::New(const FunctionCallbackInfo<Value>& args) {
 				if (!logger_name->IsString() || (connection->logger_name == "")) {
 					connection->logger_name = "default";
 				}
-			}
-			if (config->IsNumber()) {
+			} else if (config->IsNumber()) {
 				// first argument is a number, assume this is the log level
 				obj->level = config->NumberValue();
+			} else {
+				obj->level = connection->global_log_level;
 			}
+		} else {
+			obj->level = connection->global_log_level;
 		}
 
 		// return logger object
@@ -378,6 +398,7 @@ void Logger::Rotate(const FunctionCallbackInfo<Value>& context) {
 			connection->prefix
 		);
 		new_connection->logger_name = connection->logger_name;
+		new_connection->global_log_level = connection->global_log_level;
 		delete connection;
 		connection = new_connection;
 	}

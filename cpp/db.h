@@ -27,6 +27,7 @@ class DBConnection {
 
 		bool valid;
 		string logger_name;
+		int global_log_level;
 
 		const string db_type;
 		const string db_host;
