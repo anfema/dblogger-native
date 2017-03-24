@@ -69,6 +69,15 @@ static inline void initializeDB(Isolate *isolate, const Handle<Object> config) {
 		log_level = config->Get(String::NewFromUtf8(isolate, "level"))->NumberValue();
 	}
 
+	bool log_to_stdout = false;
+	if (config->Get(String::NewFromUtf8(isolate, "stdout"))->IsBoolean()) {
+		log_to_stdout = config->Get(String::NewFromUtf8(isolate, "stdout"))->BooleanValue();
+	} else {
+		if (connection) {
+			log_to_stdout = connection->log_to_stdout;
+		}
+	}
+
 	if (prefix == "undefined") {
 		prefix = string("logger");
 	}
@@ -89,6 +98,7 @@ static inline void initializeDB(Isolate *isolate, const Handle<Object> config) {
 
 	// create new connection
 	connection = new DBConnection(db_type, db_host, db_port, db_user, db_password, db_name, prefix);
+	connection->log_to_stdout = log_to_stdout;
 	if (log_level >= 0) {
 		connection->global_log_level = log_level;
 	}
@@ -269,7 +279,11 @@ void Logger::New(const FunctionCallbackInfo<Value>& args) {
 
 				// additionally log to stdout?
 				Handle<Value> stdout = config->Get(String::NewFromUtf8(isolate, "stdout"));
-				obj->log_to_stdout = stdout->BooleanValue();
+				if (stdout->IsBoolean()) {
+					obj->log_to_stdout = stdout->BooleanValue();
+				} else {
+					obj->log_to_stdout = connection->log_to_stdout;
+				}
 
 				if (!connection->valid) {
 					obj->log_to_stdout = true;
@@ -286,11 +300,14 @@ void Logger::New(const FunctionCallbackInfo<Value>& args) {
 			} else if (config->IsNumber()) {
 				// first argument is a number, assume this is the log level
 				obj->level = config->NumberValue();
+				obj->log_to_stdout = connection->log_to_stdout;
 			} else {
 				obj->level = connection->global_log_level;
+				obj->log_to_stdout = connection->log_to_stdout;
 			}
 		} else {
 			obj->level = connection->global_log_level;
+			obj->log_to_stdout = connection->log_to_stdout;
 		}
 
 		// return logger object

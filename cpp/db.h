@@ -28,6 +28,7 @@ class DBConnection {
 		bool valid;
 		string logger_name;
 		int global_log_level;
+		bool log_to_stdout;
 
 		const string db_type;
 		const string db_host;

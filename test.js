@@ -24,7 +24,7 @@ process.nextTick(() => {
 
 	logger.tag('tag1', 'tag2').tag('subTag1').tag('bla').tag('tag1');
 
-	let logger2 = new Logger({ stdout: true })
+	let logger2 = new Logger({ stdout: false })
 	let logger3 = new Logger(30);
 
 	logger.tag('fafafa').info("Test", 2, { something: "something other" }, [0, 1, 2]);
