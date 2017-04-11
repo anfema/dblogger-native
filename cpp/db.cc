@@ -14,6 +14,7 @@ DBConnection::DBConnection(
 		prefix(prefix) {
 
 	global_log_level = 0;
+	pg = NULL;
 
 	if (db_type == "sqlite") {
 		int result = sqlite3_open_v2(db_name.c_str(), &sqlite, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
@@ -53,6 +54,7 @@ DBConnection::DBConnection(
 			if (PQstatus(pg) != CONNECTION_OK) {
 				cerr << "Could not initialize DB: " << PQstatus(pg) << "\n";
 				PQfinish(pg);
+				pg = NULL;
 			} else {
 				valid = true;
 			}
@@ -343,7 +345,9 @@ DBConnection::insert(string sql, vector<string> parameters, bool ignore_conflict
 				PQclear(result);
 			}
 		}
-		cerr << "PostgreSQL Error: Insert failed, Out of memory\n";
+
+		valid = false;
+		cerr << "PostgreSQL Error: Insert failed, Out of memory or bad connection\n";
 	}
 
 	// should not happen
@@ -389,11 +393,13 @@ DBConnection::execute(string sql, vector<string> parameters) {
 				return true;
 			}
 
-			cerr << "PostgreSQL Error:" << PQresultErrorMessage(result);
+			valid = false;
+			cerr << "PostgreSQL Error: " << PQresultErrorMessage(result);
 			return false;
 		}
 
-		cerr << "PostgreSQL Error: Exec query failed, Out of memory\n";
+		valid = false;
+		cerr << "PostgreSQL Error: Exec query failed, Out of memory or bad connection\n";
 		return false;
 	}
 
@@ -453,11 +459,13 @@ DBConnection::query(string sql, vector<string> parameters) {
 					result->push_back(row_result);
 				}
 			} else {
-				cerr << "PostgreSQL Error:" << PQresultErrorMessage(pg_result);
+				valid = false;
+				cerr << "PostgreSQL Error: " << PQresultErrorMessage(pg_result);
 			}
 			PQclear(pg_result);
 		} else {
-			cerr << "PostgreSQL Error: Query failed, Out of memory\n";
+			valid = false;
+			cerr << "PostgreSQL Error: Query failed, Out of memory or bad connection\n";
 		}
 	}
 

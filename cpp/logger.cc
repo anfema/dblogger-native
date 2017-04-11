@@ -206,6 +206,9 @@ static void log(int level, Logger *logger, const FunctionCallbackInfo<Value>& ar
 	}
 
 	// log to the database
+	if (!connection->valid) {
+		logger->rotate();
+	}
 	log_db(connection, level, now, hostname, pid, filename, function, line, column, objs, logger->tags);
 }
 
@@ -410,6 +413,10 @@ void Logger::Tag(const FunctionCallbackInfo<Value>& context) {
  */
 
 void Logger::Rotate(const FunctionCallbackInfo<Value>& context) {
+	rotate();
+}
+
+void Logger::rotate(void) {
 	if (connection != NULL) {
 		auto new_connection = new DBConnection(
 			connection->db_type,

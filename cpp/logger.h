@@ -19,6 +19,7 @@ using std::string;
 class Logger : public node::ObjectWrap {
 	public:
 		static void Init(Local<Object> exports, Local<Object> module);
+		static void rotate(void);
 		bool log_to_stdout;
 		set<string> tags;
 		int level;
