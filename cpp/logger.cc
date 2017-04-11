@@ -416,6 +416,7 @@ void Logger::Rotate(const FunctionCallbackInfo<Value>& context) {
 		);
 		new_connection->logger_name = connection->logger_name;
 		new_connection->global_log_level = connection->global_log_level;
+		new_connection->log_to_stdout = connection->log_to_stdout;
 		delete connection;
 		connection = new_connection;
 	}
