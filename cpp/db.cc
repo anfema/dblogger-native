@@ -13,6 +13,8 @@ DBConnection::DBConnection(
 		db_user(db_user), db_password(db_password), db_name(db_name),
 		prefix(prefix) {
 
+	global_log_level = 0;
+
 	if (db_type == "sqlite") {
 		int result = sqlite3_open_v2(db_name.c_str(), &sqlite, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
 		if ((result != SQLITE_OK) && (sqlite != NULL)) {
