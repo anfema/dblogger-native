@@ -15,7 +15,7 @@ using std::exception;
 
 class DBConnection {
 	public:
-		DBConnection(string db_type, string db_host, int db_port, string db_user, string db_password, string db_name, string prefix);
+		DBConnection(string db_type, string db_host, int db_port, string db_user, string db_password, string db_name, string prefix, string logger_name);
 		~DBConnection();
 		bool execute(string sql);
 		bool execute(string sql, vector<string> parameters); // not available for all DB implementations

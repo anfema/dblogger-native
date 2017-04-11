@@ -8,7 +8,7 @@ using std::exception;
 DBConnection::DBConnection(
 	string db_type, string db_host, int db_port,
 	string db_user, string db_password, string db_name,
-	string prefix) :
+	string prefix, string logger_name) :
 		db_type(db_type), db_host(db_host), db_port(db_port),
 		db_user(db_user), db_password(db_password), db_name(db_name),
 		prefix(prefix) {
@@ -43,6 +43,8 @@ DBConnection::DBConnection(
 		if (db_password != "undefined") {
 			connString = connString + " password='" + db_password + "'"; // so password may not contain a ''
 		}
+
+		connString = connString + " application_name='" + logger_name + " logger'";
 
 		pg = PQconnectdb(connString.c_str());
 		if (pg == NULL) {

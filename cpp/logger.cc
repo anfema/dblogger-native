@@ -59,7 +59,9 @@ static inline void initializeDB(Isolate *isolate, const Handle<Object> config) {
 	string prefix = string(*String::Utf8Value(
 		config->Get(String::NewFromUtf8(isolate, "tablePrefix"))
 	));
-
+	string logger_name = string(*String::Utf8Value(
+		config->Get(String::NewFromUtf8(isolate, "logger"))
+	));
 	string log_level_string = string(*String::Utf8Value(
 		config->Get(String::NewFromUtf8(isolate, "level"))
 	));
@@ -82,6 +84,10 @@ static inline void initializeDB(Isolate *isolate, const Handle<Object> config) {
 		prefix = string("logger");
 	}
 
+	if (logger_name == "undefined") {
+		logger_name = string("default");
+	}
+
 	if (db_type == "undefined") {
 		// no db type, do not reinitialize
 		return;
@@ -97,7 +103,7 @@ static inline void initializeDB(Isolate *isolate, const Handle<Object> config) {
 	}
 
 	// create new connection
-	connection = new DBConnection(db_type, db_host, db_port, db_user, db_password, db_name, prefix);
+	connection = new DBConnection(db_type, db_host, db_port, db_user, db_password, db_name, prefix, logger_name);
 	connection->log_to_stdout = log_to_stdout;
 	if (log_level >= 0) {
 		connection->global_log_level = log_level;
@@ -412,7 +418,8 @@ void Logger::Rotate(const FunctionCallbackInfo<Value>& context) {
 			connection->db_user,
 			connection->db_password,
 			connection->db_name,
-			connection->prefix
+			connection->prefix,
+			connection->logger_name
 		);
 		new_connection->logger_name = connection->logger_name;
 		new_connection->global_log_level = connection->global_log_level;
