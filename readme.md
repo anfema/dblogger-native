@@ -8,6 +8,10 @@ Just install `dblogger` with `npm install --save dblogger`
 
 ## Changelog
 
+### 0.5.3
+
+- Add TypeScript definition file 🎉
+
 ### 0.5.2
 
 - Bugfix: If loglevel was not explicitly set the initialization of the global log level was undefined
