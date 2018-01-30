@@ -8,6 +8,10 @@ Just install `dblogger` with `npm install --save dblogger`
 
 ## Changelog
 
+### 0.5.4
+
+- Add `type` property to options in typescript definition
+
 ### 0.5.3
 
 - Add TypeScript definition file 🎉
