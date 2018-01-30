@@ -17,6 +17,7 @@ declare namespace dblogger {
 	}
 
 	export interface Options {
+		type: 'sqlite' | 'postgres',
 		level: LogLevel,
 		/** Also log to stdout */
 		stdout: boolean,
