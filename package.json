@@ -1,19 +1,19 @@
 {
   "name": "dblogger",
-  "version": "0.5.5",
+  "version": "0.5.6",
   "description": "Native code logging library, DB enabled",
   "main": "index.js",
   "types": "dblogger.d.ts",
   "author": {
-	  "name": "Johannes Schriewer",
-	  "email": "j.schriewer@anfe.ma"
+    "name": "Johannes Schriewer",
+    "email": "j.schriewer@anfe.ma"
   },
   "keywords": [
-	  "logging",
-	  "db",
-	  "database",
-	  "log",
-	  "api"
+    "logging",
+    "db",
+    "database",
+    "log",
+    "api"
   ],
   "license": "BSD-3-Clause",
   "gypfile": true,
@@ -25,6 +25,6 @@
     "url": "https://github.com/anfema/dblogger-native.git"
   },
   "contributors": [
-	  "André Wachter <a.wachter@anfe.ma>"
+    "André Wachter <a.wachter@anfe.ma>"
   ]
 }

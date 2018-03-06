@@ -8,6 +8,10 @@ Just install `dblogger` with `npm install --save dblogger`
 
 ## Changelog
 
+### 0.5.6
+
+- Silence the `NOTICE` warnings of `libpq` when skipping table creation on startup
+
 ### 0.5.4
 
 - Add `type` property to options in typescript definition
