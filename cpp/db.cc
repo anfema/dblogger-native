@@ -5,6 +5,10 @@
 using std::cerr;
 using std::exception;
 
+static void postgres_notice_processor(void *arg, const char *message) {
+	// no-op, to avoid printing notices to stderr
+}
+
 DBConnection::DBConnection(
 	string db_type, string db_host, int db_port,
 	string db_user, string db_password, string db_name,
@@ -65,6 +69,8 @@ DBConnection::DBConnection(
 	}
 
 	if (valid) {
+		// squelch notices logged to stderr
+		PQsetNoticeProcessor(pg, &postgres_notice_processor, NULL);
 		setup();
 	}
 }
