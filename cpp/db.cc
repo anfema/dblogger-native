@@ -56,7 +56,7 @@ DBConnection::DBConnection(
 			cerr << "Could not initialize DB: PQConnectdb returned NULL\n";
 		} else {
 			if (PQstatus(pg) != CONNECTION_OK) {
-				cerr << "Could not initialize DB: " << PQstatus(pg) << "\n";
+				cerr << PQerrorMessage(pg);
 				PQfinish(pg);
 				pg = NULL;
 			} else {
