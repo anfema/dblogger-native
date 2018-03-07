@@ -6,6 +6,11 @@ process.on('SIGHUP', () => {
 	logger.tag('rotate').info('Logfile rotated');
 });
 
+// const logger = new Logger({
+// 	type: "none",
+// 	stdout: true,
+// });
+
 const logger = new Logger({
 	type: "sqlite",
 	name: "./test.db",

@@ -21,7 +21,7 @@ void log_db(DBConnection *connection, int level, time_t date, string hostname, i
 
 		// fetch id
 		auto result = connection->query("SELECT id FROM " + connection->prefix + "_logger WHERE name = $1", replacements);
-		if (result->size() > 0) {
+		if (result && result->size() > 0) {
 			saved_logger_id = result->front()[string("id")];
 		} else {
 			// insert logger name into DB, will ignore the insert statement when a constraint error occurs
@@ -35,7 +35,7 @@ void log_db(DBConnection *connection, int level, time_t date, string hostname, i
 
 	auto result = connection->query("SELECT id FROM " + connection->prefix + "_hosts WHERE name = $1", replacements);
 	string hostname_id;
-	if (result->size() > 0) {
+	if (result && result->size() > 0) {
 		hostname_id = result->front()[string("id")];
 	} else {
 		hostname_id = to_string(connection->insert("INTO " + connection->prefix + "_hosts (name) VALUES ($1)", replacements));
@@ -47,7 +47,7 @@ void log_db(DBConnection *connection, int level, time_t date, string hostname, i
 
 	result = connection->query("SELECT id FROM " + connection->prefix + "_source WHERE path = $1", replacements);
 	string source_id;
-	if (result->size() > 0) {
+	if (result && result->size() > 0) {
 		source_id = result->front()[string("id")];
 	} else {
 		source_id = to_string(connection->insert("INTO " + connection->prefix + "_source (path) VALUES ($1)", replacements));
@@ -61,7 +61,7 @@ void log_db(DBConnection *connection, int level, time_t date, string hostname, i
 
 	result = connection->query("SELECT id FROM " + connection->prefix + "_function WHERE name = $1 AND \"lineNumber\" = $2 AND \"sourceID\" = $3", replacements);
 	string function_id;
-	if (result->size() > 0) {
+	if (result && result->size() > 0) {
 		function_id = result->front()[string("id")];
 	} else {
 		function_id = to_string(connection->insert("INTO " + connection->prefix + "_function (name, \"lineNumber\", \"sourceID\") VALUES ($1, $2, $3)", replacements));
@@ -100,7 +100,7 @@ void log_db(DBConnection *connection, int level, time_t date, string hostname, i
 
 		auto result = connection->query("SELECT id FROM " + connection->prefix + "_tag WHERE name = $1", replacements);
 		string tag_id;
-		if (result->size() > 0) {
+		if (result && result->size() > 0) {
 			tag_id = result->front()[string("id")];
 		} else {
 			tag_id = to_string(connection->insert("INTO " + connection->prefix + "_tag (name) VALUES ($1)", replacements));

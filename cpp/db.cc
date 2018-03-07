@@ -65,6 +65,7 @@ DBConnection::DBConnection(
 		}
 	} else {
 		// not valid
+		valid = true;
 		return;
 	}
 
@@ -448,7 +449,7 @@ DBConnection::query(string sql, vector<string> parameters) {
 			return result;
 		}
 		sqlite3_mutex_leave(mtx);
-	} else {
+	} else if (db_type == "postgres") {
 		PGresult *pg_result = execute_pg_statement(sql, parameters, pg);
 
 		if (pg_result) {
@@ -473,6 +474,8 @@ DBConnection::query(string sql, vector<string> parameters) {
 			valid = false;
 			cerr << "PostgreSQL Error: Query failed, Out of memory or bad connection\n";
 		}
+	} else {
+		return NULL;
 	}
 
 	return result;
