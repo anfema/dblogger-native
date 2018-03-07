@@ -8,6 +8,11 @@ Just install `dblogger` with `npm install --save dblogger`
 
 ## Changelog
 
+### 0.6.0
+
+- Allow instanciation of logger without any DB config (use `type: 'none'`)
+- Bugfix: Do not crash with segmentation fault if first logger to be instanciated is provided with no configuration (throws exception now)
+
 ### 0.5.6
 
 - Silence the `NOTICE` warnings of `libpq` when skipping table creation on startup
@@ -85,8 +90,8 @@ const logger = require('dblogger')();
 
 Available options in the options object:
 
-- `type`: `sqlite` or `postgres` (ask me if you need more)
-- `name`: db name to use (path to db file for `sqlite`)
+- `type`: `sqlite`, `postgres` or `none` (ask me if you need more)
+- `name`: db name to use (path to db file for `sqlite`, optional if using `none`)
 - `host`: db host (invalid for sqlite)
 - `port`: port number for db server (invalid for sqlite) (optional)
 - `user`: username for db server (invalid for sqlite) (optional)

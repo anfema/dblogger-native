@@ -1,6 +1,6 @@
 {
   "name": "dblogger",
-  "version": "0.5.6",
+  "version": "0.6.0",
   "description": "Native code logging library, DB enabled",
   "main": "index.js",
   "types": "dblogger.d.ts",
