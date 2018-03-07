@@ -16,16 +16,34 @@ declare namespace dblogger {
 		Fatal = 60
 	}
 
-	export interface Options {
-		type: 'sqlite' | 'postgres',
-		/** File name for sqlite */
-		name: string,
+	export interface BaseOptions {
+		type: 'postgres' | 'sqlite' | 'none',
 		level: LogLevel,
 		/** Also log to stdout */
 		stdout: boolean,
 		/** Logger name */
 		logger: string,
 	}
+
+
+
+	export interface PostgresOptions extends BaseOptions {
+		type: 'postgres',
+		/** Database name */
+		name: string,
+		user: string,
+		password: string,
+		host: string,
+		port: number,
+	}
+
+	export interface SqliteOptions extends BaseOptions {
+		type: 'sqlite',
+		/** File name for sqlite */
+		name: string,
+	}
+
+	export type Options = PostgresOptions | SqliteOptions;
 
 	export interface Logger {
 		trace(...args: any[]): void;
