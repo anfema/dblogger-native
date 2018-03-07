@@ -278,6 +278,12 @@ void Logger::New(const FunctionCallbackInfo<Value>& args) {
 				// argument is an configuration object, re-initialize DB
 				initializeDB(isolate, config);
 
+				if (!connection) {
+					// Invoked without configuration
+					isolate->ThrowException(Exception::Error(String::NewFromUtf8(isolate, "You have to provide a configuration object for the first instanciation of a logger.")));
+					return;
+				}
+
 				// if the config object contains a `level` set the log level to that value
 				Handle<Value> level = config->Get(String::NewFromUtf8(isolate, "level"));
 				if (level->IsNumber()) {
