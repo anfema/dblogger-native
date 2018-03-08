@@ -25,7 +25,9 @@ declare namespace dblogger {
 		logger: string,
 	}
 
-
+	export interface NoneOptions extends BaseOptions {
+		type: 'none',
+	}
 
 	export interface PostgresOptions extends BaseOptions {
 		type: 'postgres',
@@ -43,7 +45,7 @@ declare namespace dblogger {
 		name: string,
 	}
 
-	export type Options = PostgresOptions | SqliteOptions;
+	export type Options = PostgresOptions | SqliteOptions | NoneOptions;
 
 	export interface Logger {
 		trace(...args: any[]): void;
