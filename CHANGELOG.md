@@ -1,3 +1,7 @@
+### 0.6.1
+
+- Fixed typescript definition
+
 ### 0.6.0
 
 - Allow instanciation of logger without any DB config (use `type: 'none'`)
