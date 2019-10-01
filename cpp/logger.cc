@@ -14,13 +14,14 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Isolate;
 using v8::Local;
+using v8::NewStringType;
 using v8::Number;
 using v8::Object;
 using v8::Persistent;
 using v8::String;
 using v8::Value;
+using v8::Boolean;
 using v8::Exception;
-using v8::Handle;
 using v8::Object;
 using v8::EscapableHandleScope;
 using v8::StackTrace;
@@ -32,48 +33,71 @@ static DBConnection *connection = NULL;
 static Persistent<Object> node_path;
 
 
-
 /*
  * Helper funcs
  */
 
+ static inline Local<String> local_string(Isolate *isolate, string str) {
+	return String::NewFromUtf8(isolate, str.c_str(), NewStringType::kNormal).ToLocalChecked();
+}
+
+
+static inline Local<Value> get_value_from_dict(Isolate *isolate, const Local<Object>obj, string key) {
+	Local<Value> result = obj->Get(
+		isolate->GetCurrentContext(),
+		local_string(isolate, key)
+	).ToLocalChecked();
+
+	return result;
+}
+
+static inline Local<Object> get_object_from_dict(Isolate *isolate, const Local<Object>obj, string key) {
+	return get_value_from_dict(isolate, obj, key)->ToObject(isolate->GetCurrentContext()).ToLocalChecked();
+}
+
+static inline string get_string_from_value(Isolate *isolate, const Local<Value>val) {
+	return string(
+		*String::Utf8Value(
+			isolate,
+			val
+		)
+	);
+}
+
+static inline string get_string_from_dict(Isolate *isolate, const Local<Object>obj, string key) {
+	return get_string_from_value(isolate, get_value_from_dict(isolate, obj, key));
+}
+
+static inline int get_int_from_dict(Isolate *isolate, const Local<Object>obj, string key) {
+	return get_value_from_dict(isolate, obj, key)->IntegerValue(isolate->GetCurrentContext()).FromMaybe(0);
+}
+
+static inline bool get_bool_from_dict(Isolate *isolate, const Local<Object>obj, string key) {
+	return get_value_from_dict(isolate, obj, key)->BooleanValue(isolate);
+}
+
+
 // Initialize DB connection, will terminate and overwrite the old connection
-static inline void initializeDB(Isolate *isolate, const Handle<Object> config) {
+static inline void initializeDB(Isolate *isolate, const Local<Object> config) {
 	// unpack config object
-	string db_host = string(*String::Utf8Value(
-		config->Get(String::NewFromUtf8(isolate, "host"))
-	));
-	int db_port = config->Get(String::NewFromUtf8(isolate, "port"))->NumberValue();
-	string db_user = string(*String::Utf8Value(
-		config->Get(String::NewFromUtf8(isolate, "user"))
-	));
-	string db_password = string(*String::Utf8Value(
-		config->Get(String::NewFromUtf8(isolate, "password"))
-	));
-	string db_name = string(*String::Utf8Value(
-		config->Get(String::NewFromUtf8(isolate, "name"))
-	));
-	string db_type = string(*String::Utf8Value(
-		config->Get(String::NewFromUtf8(isolate, "type"))
-	));
-	string prefix = string(*String::Utf8Value(
-		config->Get(String::NewFromUtf8(isolate, "tablePrefix"))
-	));
-	string logger_name = string(*String::Utf8Value(
-		config->Get(String::NewFromUtf8(isolate, "logger"))
-	));
-	string log_level_string = string(*String::Utf8Value(
-		config->Get(String::NewFromUtf8(isolate, "level"))
-	));
+	string db_host = get_string_from_dict(isolate, config, "host");
+	int db_port = get_int_from_dict(isolate, config, "port");
+	string db_user = get_string_from_dict(isolate, config, "user");
+	string db_password = get_string_from_dict(isolate, config, "password");
+	string db_name = get_string_from_dict(isolate, config, "name");
+	string db_type = get_string_from_dict(isolate, config, "type");
+	string prefix = get_string_from_dict(isolate, config, "tablePrefix");
+	string logger_name = get_string_from_dict(isolate, config, "logger");
+	string log_level_string = get_string_from_dict(isolate, config, "level");
 
 	int log_level = -1;
 	if (log_level_string != "undefined") {
-		log_level = config->Get(String::NewFromUtf8(isolate, "level"))->NumberValue();
+		log_level = get_int_from_dict(isolate, config, "level");
 	}
 
 	bool log_to_stdout = false;
-	if (config->Get(String::NewFromUtf8(isolate, "stdout"))->IsBoolean()) {
-		log_to_stdout = config->Get(String::NewFromUtf8(isolate, "stdout"))->BooleanValue();
+	if (get_value_from_dict(isolate, config, "stdout")->IsBoolean()) {
+		log_to_stdout = get_bool_from_dict(isolate, config, "stdout");
 	} else {
 		if (connection) {
 			log_to_stdout = connection->log_to_stdout;
@@ -111,42 +135,42 @@ static inline void initializeDB(Isolate *isolate, const Handle<Object> config) {
 }
 
 // JSON.stringify() a value
-static string JSONStringify(Isolate *isolate, Handle<Value> obj) {
+static string JSONStringify(Isolate *isolate, Local<Value> obj) {
 	// get the global JSON object
-	Local<Object> json = isolate->GetCurrentContext()->Global()->Get(String::NewFromUtf8(isolate, "JSON"))->ToObject();
+	Local<Object> json = get_object_from_dict(isolate, isolate->GetCurrentContext()->Global(), "JSON");
 
 	// fetch `stringify` function
-	Local<Function> stringify = json->Get(String::NewFromUtf8(isolate, "stringify")).As<Function>();
+	Local<Function> stringify = get_value_from_dict(isolate, json, "stringify").As<Function>();
 
 	// call stringify on the obj
-	Local<Value> result = stringify->Call(json, 1, &obj);
+	Local<Value> result = stringify->Call(isolate->GetCurrentContext(), json, 1, &obj).ToLocalChecked();
 
 	// return the result
-	return string(*String::Utf8Value(result));
+	return string(*String::Utf8Value(isolate, result));
 }
 
 // Use the node internal path.relative() function to calculate a relative path
-static string relativePath(Isolate *isolate, Handle<Value> to, char *from) {
+static string relativePath(Isolate *isolate, Local<Value> to, char *from) {
 	// get the unbound path module inserted into isolate
 	Local<Object> path = Local<Object>::New(isolate, node_path);
 
 	// fetch the `relative` function
-	Local<Function> relative = path->Get(String::NewFromUtf8(isolate, "relative")).As<Function>();
+	Local<Function> relative = get_value_from_dict(isolate, path, "relative").As<Function>();
 
 	// call path.relative(from, to)
 	Local<Value> args[2];
-	args[0] = String::NewFromUtf8(isolate, from);
+	args[0] = local_string(isolate, from);
 	args[1] = to;
 
-	Local<Value> result = relative->Call(path, 2, args);
+	Local<Value> result = relative->Call(isolate->GetCurrentContext(), path, 2, args).ToLocalChecked();
 
 	// If the result is valid return it
 	if (result->IsString()) {
-		return string(*String::Utf8Value(result));
+		return string(*String::Utf8Value(isolate, result));
 	}
 
 	// invalid result return `to`
-	return string(*String::Utf8Value(to));
+	return string(*String::Utf8Value(isolate, to));
 }
 
 // Save a log entry
@@ -168,10 +192,10 @@ static void log(int level, Logger *logger, const FunctionCallbackInfo<Value>& ar
 	int pid = getpid();
 
 	// fetch stack frame for: filename, source line, function name
-	Local<StackFrame> frame = StackTrace::CurrentStackTrace(isolate, 1, StackTrace::kOverview)->GetFrame(0);
+	Local<StackFrame> frame = StackTrace::CurrentStackTrace(isolate, 1, StackTrace::kOverview)->GetFrame(isolate, 0);
 	char c_path[1024] = {}; getcwd(c_path, 1024);
 	string filename = relativePath(isolate, frame->GetScriptName(), c_path);
-	string function = string(*String::Utf8Value(frame->GetFunctionName())) + "()";
+	string function = string(*String::Utf8Value(isolate, frame->GetFunctionName())) + "()";
 	int line = frame->GetLineNumber();
 	int column = frame->GetColumn();
 
@@ -183,7 +207,7 @@ static void log(int level, Logger *logger, const FunctionCallbackInfo<Value>& ar
 	// convert all arguments to readable values (JSON.stringify objects and arrays)
 	vector<string> objs = vector<string>();
 	for(int i = 0; i < args.Length(); i++) {
-		Handle<Value> val = Handle<Object>::Cast(args[i]);
+		Local<Value> val = Local<Object>::Cast(args[i]);
 		string item;
 
 		if (val->IsArray() || val->IsObject()) {
@@ -192,7 +216,8 @@ static void log(int level, Logger *logger, const FunctionCallbackInfo<Value>& ar
 		} else {
 			// just convert to string
 			item = string(*String::Utf8Value(
-				val->ToString()
+				isolate,
+				val->ToString(isolate->GetCurrentContext()).ToLocalChecked()
 			));
 		}
 
@@ -226,20 +251,20 @@ Logger::Logger() {
 
 Logger::~Logger() {}
 
-void Logger::Init(Local<Object> exports, Local<Object> module) {
+void Logger::Init(Local<Object> exports, Local<Value> module) {
 	Isolate* isolate = exports->GetIsolate();
 
 	// load the path module
-	Local<Function> require = module->Get(String::NewFromUtf8(isolate, "require")).As<Function>();
-	Local<Value> args[] = { String::NewFromUtf8(isolate, "path") };
-	Local<Object> path = require->Call(module, 1, args).As<Object>();
+	Local<Function> require = get_value_from_dict(isolate, module.As<Object>(), "require").As<Function>();
+	Local<Value> args[] = { local_string(isolate, "path") };
+	Local<Object> path = require->Call(isolate->GetCurrentContext(), module, 1, args).ToLocalChecked().As<Object>();
 
 	// store path module in persistent handle for further use, this unbinds it from the isolate
 	node_path.Reset(isolate, path);
 
 	// Prepare constructor template
 	Local<FunctionTemplate> tpl = FunctionTemplate::New(isolate, New);
-	tpl->SetClassName(String::NewFromUtf8(isolate, "Logger"));
+	tpl->SetClassName(local_string(isolate, "Logger"));
 	tpl->InstanceTemplate()->SetInternalFieldCount(1);
 
 	// Prototype logging functions
@@ -258,9 +283,12 @@ void Logger::Init(Local<Object> exports, Local<Object> module) {
 	NODE_SET_PROTOTYPE_METHOD(tpl, "rotate", Rotate);
 
 	// Return create function, set class name
-	constructor.Reset(isolate, tpl->GetFunction());
-	exports->Set(String::NewFromUtf8(isolate, "Logger"),
-	tpl->GetFunction());
+	constructor.Reset(isolate, tpl->GetFunction(isolate->GetCurrentContext()).ToLocalChecked());
+	auto result = exports->Set(
+		isolate->GetCurrentContext(),
+		local_string(isolate, "Logger"),
+		tpl->GetFunction(isolate->GetCurrentContext()).ToLocalChecked()
+	);
 }
 
 void Logger::New(const FunctionCallbackInfo<Value>& args) {
@@ -273,29 +301,29 @@ void Logger::New(const FunctionCallbackInfo<Value>& args) {
 
 		// if we have arguments:
 		if (args.Length() > 0) {
-			Handle<Object> config = Handle<Object>::Cast(args[0]);
+			Local<Object> config = Local<Object>::Cast(args[0]);
 			if (config->IsObject()) {
 				// argument is an configuration object, re-initialize DB
 				initializeDB(isolate, config);
 
 				if (!connection) {
 					// Invoked without configuration
-					isolate->ThrowException(Exception::Error(String::NewFromUtf8(isolate, "You have to provide a configuration object for the first instanciation of a logger.")));
+					isolate->ThrowException(Exception::Error(local_string(isolate, "You have to provide a configuration object for the first instanciation of a logger.")));
 					return;
 				}
 
 				// if the config object contains a `level` set the log level to that value
-				Handle<Value> level = config->Get(String::NewFromUtf8(isolate, "level"));
+				Local<Value> level = get_value_from_dict(isolate, config, "level");
 				if (level->IsNumber()) {
-					obj->level = level->NumberValue();
+					obj->level = level->NumberValue(isolate->GetCurrentContext()).FromMaybe(0);
 				} else {
 					obj->level = connection->global_log_level;
 				}
 
 				// additionally log to stdout?
-				Handle<Value> stdout = config->Get(String::NewFromUtf8(isolate, "stdout"));
+				Local<Value> stdout = get_value_from_dict(isolate, config, "stdout");
 				if (stdout->IsBoolean()) {
-					obj->log_to_stdout = stdout->BooleanValue();
+					obj->log_to_stdout = stdout->BooleanValue(isolate);
 				} else {
 					obj->log_to_stdout = connection->log_to_stdout;
 				}
@@ -305,16 +333,16 @@ void Logger::New(const FunctionCallbackInfo<Value>& args) {
 				}
 
 				// logger name
-				Handle<Value> logger_name = config->Get(String::NewFromUtf8(isolate, "logger"));
+				Local<Value> logger_name = get_value_from_dict(isolate, config, "logger");
 				if (logger_name->IsString()) {
-					connection->logger_name = string(*String::Utf8Value(logger_name->ToString()));
+					connection->logger_name = get_string_from_value(isolate, logger_name);
 				}
 				if (!logger_name->IsString() || (connection->logger_name == "")) {
 					connection->logger_name = "default";
 				}
 			} else if (config->IsNumber()) {
 				// first argument is a number, assume this is the log level
-				obj->level = config->NumberValue();
+				obj->level = config->NumberValue(isolate->GetCurrentContext()).FromMaybe(0);
 				obj->log_to_stdout = connection->log_to_stdout;
 			} else {
 				obj->level = connection->global_log_level;
@@ -330,7 +358,7 @@ void Logger::New(const FunctionCallbackInfo<Value>& args) {
 		args.GetReturnValue().Set(args.This());
 	} else {
 		// Invoked without `new`: do not allow that here
-		isolate->ThrowException(Exception::Error(String::NewFromUtf8(isolate, "Use `new` to create a logger object.")));
+		isolate->ThrowException(Exception::Error(local_string(isolate, "Use `new` to create a logger object.")));
 	}
 }
 
@@ -402,10 +430,8 @@ void Logger::Tag(const FunctionCallbackInfo<Value>& context) {
 
 	// add new tags from arguments
 	for(int i = 0; i < context.Length(); i++) {
-		Handle<Value> val = Handle<Object>::Cast(context[i]);
-		string tag = string(*String::Utf8Value(
-			val->ToString())
-		);
+		Local<Value> val = Local<Object>::Cast(context[i]);
+		string tag = get_string_from_value(isolate, val);
 		obj->tags.insert(tag);
 	}
 
