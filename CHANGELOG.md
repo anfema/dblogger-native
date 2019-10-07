@@ -1,3 +1,7 @@
+### 0.7.1
+
+- Bugfix: Crash when using logger on toplevel without function
+
 ### 0.7.0
 
 - Compiles with Node 12, if you get problems with older node versions fall back to `0.6.1`
