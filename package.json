@@ -17,6 +17,10 @@
   ],
   "license": "BSD-3-Clause",
   "gypfile": true,
+  "engines": {
+	"node": ">=12.0"
+  },
+  "engineStrict": true,
   "dependencies": {
     "bindings": "~1.5.0"
   },
