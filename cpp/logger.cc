@@ -195,14 +195,16 @@ static void log(int level, Logger *logger, const FunctionCallbackInfo<Value>& ar
 	Local<StackFrame> frame = StackTrace::CurrentStackTrace(isolate, 1, StackTrace::kOverview)->GetFrame(isolate, 0);
 	char c_path[1024] = {}; getcwd(c_path, 1024);
 	string filename = relativePath(isolate, frame->GetScriptName(), c_path);
-	string function = string(*String::Utf8Value(isolate, frame->GetFunctionName())) + "()";
-	int line = frame->GetLineNumber();
-	int column = frame->GetColumn();
 
-	if (function == "()") {
+	string function;
+	if (*String::Utf8Value(isolate, frame->GetFunctionName()) != NULL) {
+		function = string(*String::Utf8Value(isolate, frame->GetFunctionName())) + "()";
+	} else {
 		// if we get no function the call was from the toplevel scope
 		function = "<global scope>";
 	}
+	int line = frame->GetLineNumber();
+	int column = frame->GetColumn();
 
 	// convert all arguments to readable values (JSON.stringify objects and arrays)
 	vector<string> objs = vector<string>();
